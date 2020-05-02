@@ -5,5 +5,5 @@ public abstract class ChannelPointsRedemptionHandler {
     public ChannelPointsRedemptionHandler(String beginningPattern) {
         this.beginningPattern = beginningPattern;
     }
-    abstract public void matched(String input);
+    abstract public void matched(String input, String prompt);
 }

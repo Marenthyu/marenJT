@@ -132,7 +132,7 @@ public class PubSubClient extends WebSocketClient {
             for (ChannelPointsRedemptionHandler h:channelPointsRedemptionHandlers) {
                 if (title.startsWith(h.beginningPattern) || prompt.startsWith(h.beginningPattern)) {
                     String finalInput = input;
-                    new Thread(() -> h.matched(finalInput)).start();
+                    new Thread(() -> h.matched(finalInput, prompt)).start();
                 }
             }
         }
