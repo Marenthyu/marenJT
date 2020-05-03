@@ -12,8 +12,9 @@ import org.json.JSONObject;
 
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.text.DateFormat;
-import java.text.ParseException;
+import java.sql.Date;
+import java.time.Instant;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.concurrent.TimeUnit;
 
@@ -36,7 +37,7 @@ public class PubSubClient extends WebSocketClient {
     public void onOpen(ServerHandshake handshakedata) {
         System.out.println("[TWITCH][PUBSUB][PING] Connected to PubSub. Sending PING");
         this.ping();
-        for (String topic:topics) {
+        for (String topic : topics) {
             this.listenToTopic(topic);
         }
     }
@@ -143,13 +144,13 @@ public class PubSubClient extends WebSocketClient {
                 redemptionObj = new Redemption(redemption.getString("id"), redemption.getJSONObject("user").getString("id"),
                         redemption.getJSONObject("user").getString("login"), redemption.getJSONObject("user").getString("display_name"),
                         redemption.getString("channel_id"), redemption.getString("user_input"), redemption.getString("status"), rewardObj,
-                        DateFormat.getInstance().parse(redemption.getString("redeemed_at")));
-            } catch (ParseException e) {
+                        Date.from(Instant.from(DateTimeFormatter.ISO_INSTANT.parse(redemption.getString("redeemed_at")))));
+            } catch (Exception e) {
                 e.printStackTrace();
                 System.err.println("[TWITCH][PUBSUB] Twitch sent an invalid timestamp. The crap. This shouldn't happen.");
                 return;
             }
-            for (ChannelPointsRedemptionHandler h:channelPointsRedemptionHandlers) {
+            for (ChannelPointsRedemptionHandler h : channelPointsRedemptionHandlers) {
                 if (title.startsWith(h.beginningPattern) || prompt.startsWith(h.beginningPattern)) {
                     new Thread(() -> h.matched(redemptionObj)).start();
                 }
