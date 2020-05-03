@@ -143,7 +143,7 @@ public class PubSubClient extends WebSocketClient {
             try {
                 redemptionObj = new Redemption(redemption.getString("id"), redemption.getJSONObject("user").getString("id"),
                         redemption.getJSONObject("user").getString("login"), redemption.getJSONObject("user").getString("display_name"),
-                        redemption.getString("channel_id"), redemption.getString("user_input"), redemption.getString("status"), rewardObj,
+                        redemption.getString("channel_id"), reward.getBoolean("is_user_input_required") ? redemption.getString("user_input") : "", redemption.getString("status"), rewardObj,
                         Date.from(Instant.from(DateTimeFormatter.ISO_INSTANT.parse(redemption.getString("redeemed_at")))));
             } catch (Exception e) {
                 e.printStackTrace();
