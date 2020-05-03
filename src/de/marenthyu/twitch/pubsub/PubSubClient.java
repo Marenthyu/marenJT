@@ -2,6 +2,8 @@ package de.marenthyu.twitch.pubsub;
 
 import de.marenthyu.twitch.auth.oauth.OAuthToken;
 import de.marenthyu.twitch.pubsub.channelpoints.ChannelPointsRedemptionHandler;
+import de.marenthyu.twitch.pubsub.channelpoints.Redemption;
+import de.marenthyu.twitch.pubsub.channelpoints.Reward;
 import org.java_websocket.client.WebSocketClient;
 import org.java_websocket.handshake.ServerHandshake;
 import org.json.JSONArray;
@@ -10,6 +12,8 @@ import org.json.JSONObject;
 
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.text.DateFormat;
+import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.concurrent.TimeUnit;
 
@@ -129,10 +133,25 @@ public class PubSubClient extends WebSocketClient {
                 input = redemption.getString("user_input");
             }
             System.out.println(String.format("[TWITCH][PUBSUB][MESSAGE] %s redeemed '%s' with Input '%s'", user, title, input));
+            Reward rewardObj = new Reward(reward.getString("id"), reward.getString("channel_id"), reward.getString("title"),
+                    reward.getString("prompt"), reward.getString("background_color"), reward.getInt("cost"),
+                    reward.getBoolean("is_user_input_required"), reward.getBoolean("is_sub_only"), reward.getBoolean("is_enabled"),
+                    reward.getBoolean("is_paused"), reward.getBoolean("is_in_stock"), reward.getJSONObject("max_per_stream").getBoolean("is_enabled"),
+                    reward.getJSONObject("max_per_stream").getInt("max_per_stream"), reward.getBoolean("should_redemptions_skip_request_queue"));
+            Redemption redemptionObj;
+            try {
+                redemptionObj = new Redemption(redemption.getString("id"), redemption.getJSONObject("user").getString("id"),
+                        redemption.getJSONObject("user").getString("login"), redemption.getJSONObject("user").getString("display_name"),
+                        redemption.getString("channel_id"), redemption.getString("user_input"), redemption.getString("status"), rewardObj,
+                        DateFormat.getInstance().parse(redemption.getString("redeemed_at")));
+            } catch (ParseException e) {
+                e.printStackTrace();
+                System.err.println("[TWITCH][PUBSUB] Twitch sent an invalid timestamp. The crap. This shouldn't happen.");
+                return;
+            }
             for (ChannelPointsRedemptionHandler h:channelPointsRedemptionHandlers) {
                 if (title.startsWith(h.beginningPattern) || prompt.startsWith(h.beginningPattern)) {
-                    String finalInput = input;
-                    new Thread(() -> h.matched(finalInput, prompt)).start();
+                    new Thread(() -> h.matched(redemptionObj)).start();
                 }
             }
         }
