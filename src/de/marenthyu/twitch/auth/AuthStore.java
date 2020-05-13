@@ -12,6 +12,7 @@ public class AuthStore {
     private static boolean initialized = false;
     private static OAuthTokenFactory tokenFactory;
     private static final String saveFileName = Paths.get(System.getProperty("user.dir"), "TwitchOAuthToken.ser").toAbsolutePath().toString();
+    private static boolean needsToken = true;
 
     public static void init(String clientID) {
         if (initialized) {
@@ -28,18 +29,15 @@ public class AuthStore {
                 lastToken = new OAuthToken(((OAuthToken) ois.readObject()).getOAuthString());
                 needNewToken = !lastToken.isValid();
             } catch (InvalidTwitchTokenException e) {
-                System.err.println("[TWITCH][AUTH] Token was invalid, requesting new Token.");
+                System.err.println("[TWITCH][AUTH] Token was invalid, a new one will have to be requested.");
                 needNewToken = true;
             }
         } catch (IOException | ClassNotFoundException e) {
-            System.out.println("[TWITCH][AUTH] No token found on disk, requesting new one.");
+            System.out.println("[TWITCH][AUTH] No token found on disk, one will have to be requested.");
         }
         if (needNewToken) {
-            tokenFactory.askUserForOAuth((token) -> {
-                AuthStore.lastToken = token;
-                AuthStore.initialized = true;
-                AuthStore.writeLastTokenToDisk();
-            });
+            needsToken = true;
+            AuthStore.initialized = true;
         } else {
             AuthStore.initialized = true;
             AuthStore.writeLastTokenToDisk();
@@ -63,4 +61,17 @@ public class AuthStore {
     public static OAuthToken getToken() {
         return lastToken;
     }
+
+    public static void requestNewUserToken() {
+        tokenFactory.askUserForOAuth((token) -> {
+            AuthStore.lastToken = token;
+            AuthStore.needsToken = false;
+            AuthStore.writeLastTokenToDisk();
+        });
+    }
+
+    public static boolean hasUserToken() {
+        return !needsToken;
+    }
+
 }
