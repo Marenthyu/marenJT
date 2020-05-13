@@ -41,6 +41,7 @@ public class AuthStore {
         } else {
             AuthStore.initialized = true;
             AuthStore.writeLastTokenToDisk();
+            needsToken = false;
         }
     }
 
