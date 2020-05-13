@@ -14,6 +14,7 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.ArrayList;
 
 public class OAuthTokenFactory {
     private final String CLIENT_ID;
@@ -25,16 +26,31 @@ public class OAuthTokenFactory {
     }
 
     public void askUserForOAuth(OAuthTokenFactoryCallback callback) {
+        ArrayList<String> scopes = new ArrayList<>();
+        scopes.add("channel:read:redemptions");
+        askUserForOAuth(callback, scopes);
+    }
+
+    public void askUserForOAuth(OAuthTokenFactoryCallback callback, ArrayList<String> scopes) {
         System.out.println("[TWITCH][AUTH]Requesting OAuth Token from user...");
         if (Desktop.isDesktopSupported()) {
             try {
+                StringBuilder scopeString = new StringBuilder();
+                boolean first = true;
+                for (String scope:scopes) {
+                    if (first) {
+                        first = false;
+                    } else {
+                        scopeString.append("+");
+                    }
+                    scopeString.append(scope);
+                }
                 URI uri = new URI(
                         "https://id.twitch.tv/oauth2/authorize" +
                                 "?client_id=" + CLIENT_ID +
                                 "&redirect_uri=" + REDIRECT_URI +
                                 "&response_type=token" +
-                                "&scope=channel:read:redemptions" +
-                                "&state=rabiribi");
+                                "&scope=" + scopeString.toString());
                 Desktop.getDesktop().browse(
                         uri
                 );

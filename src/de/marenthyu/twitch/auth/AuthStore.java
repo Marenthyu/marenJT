@@ -6,6 +6,7 @@ import de.marenthyu.twitch.auth.oauth.exceptions.InvalidTwitchTokenException;
 
 import java.io.*;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 
 public class AuthStore {
     private static OAuthToken lastToken;
@@ -69,6 +70,14 @@ public class AuthStore {
             AuthStore.needsToken = false;
             AuthStore.writeLastTokenToDisk();
         });
+    }
+
+    public static void requestNewUserToken(ArrayList<String> scopes) {
+        tokenFactory.askUserForOAuth((token) -> {
+            AuthStore.lastToken = token;
+            AuthStore.needsToken = false;
+            AuthStore.writeLastTokenToDisk();
+        }, scopes);
     }
 
     public static boolean hasUserToken() {
