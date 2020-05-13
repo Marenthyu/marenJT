@@ -54,4 +54,19 @@ public class Redemption {
         this.reward = reward;
         this.redemptionTime = redemptionTime;
     }
+
+    @Override
+    public String toString() {
+        return "Redemption{" +
+                "id='" + id + '\'' +
+                ", userID='" + userID + '\'' +
+                ", userLogin='" + userLogin + '\'' +
+                ", userDisplayName='" + userDisplayName + '\'' +
+                ", channelId='" + channelId + '\'' +
+                ", input='" + input + '\'' +
+                ", status='" + status + '\'' +
+                ", reward=" + reward +
+                ", redemptionTime=" + redemptionTime +
+                '}';
+    }
 }

@@ -77,4 +77,24 @@ public class Reward {
         this.maxPerStream = maxPerStream;
         this.skipsRedemptionRequestQueue = skipsRedemptionRequestQueue;
     }
+
+    @Override
+    public String toString() {
+        return "Reward{" +
+                "id='" + id + '\'' +
+                ", channelID='" + channelID + '\'' +
+                ", title='" + title + '\'' +
+                ", prompt='" + prompt + '\'' +
+                ", backgroundColor='" + backgroundColor + '\'' +
+                ", cost=" + cost +
+                ", maxPerStream=" + maxPerStream +
+                ", userInputRequired=" + userInputRequired +
+                ", subOnly=" + subOnly +
+                ", enabled=" + enabled +
+                ", paused=" + paused +
+                ", inStock=" + inStock +
+                ", limitedPerStream=" + limitedPerStream +
+                ", skipsRedemptionRequestQueue=" + skipsRedemptionRequestQueue +
+                '}';
+    }
 }
