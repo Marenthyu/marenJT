@@ -4,6 +4,8 @@ import de.marenthyu.twitch.auth.oauth.OAuthToken;
 import de.marenthyu.twitch.pubsub.bits.BitsEvent;
 import de.marenthyu.twitch.pubsub.bits.BitsEventHandler;
 import de.marenthyu.twitch.pubsub.channelpoints.*;
+import de.marenthyu.twitch.pubsub.subscription.SubscriptionEvent;
+import de.marenthyu.twitch.pubsub.subscription.SubscriptionEventHandler;
 import org.java_websocket.client.WebSocketClient;
 import org.java_websocket.handshake.ServerHandshake;
 import org.json.JSONArray;
@@ -25,6 +27,7 @@ public class PubSubClient extends WebSocketClient {
     private boolean pongReceived;
     private final ArrayList<ChannelPointsRedemptionHandler> channelPointsRedemptionHandlers = new ArrayList<>();
     private final ArrayList<BitsEventHandler> bitsEventHandlers = new ArrayList<>();
+    private final ArrayList<SubscriptionEventHandler> subscriptionEventHandlers = new ArrayList<>();
 
     public PubSubClient(OAuthToken oauth, ArrayList<String> topics) throws URISyntaxException {
         super(new URI(PUBSUB_URL));
@@ -88,13 +91,17 @@ public class PubSubClient extends WebSocketClient {
                 }
                 case "MESSAGE": {
                     JSONObject data = msg.getJSONObject("data");
-                    String dataMessage = data.getString("message");
                     String topic = data.getString("topic");
                     // System.out.println("[TWITCH][PUBSUB][MESSAGE][" + topic + "] " + dataMessage);
                     if (topic.startsWith("channel-points-channel-v1")) {
+                        String dataMessage = data.getString("message");
                         handleChannelPointsRedemption(dataMessage);
                     } else if (topic.startsWith("channel-bits-events-v2")) {
+                        String dataMessage = data.getString("message");
                         handleBitsEventV2(dataMessage);
+                    } else if (topic.startsWith("channel-subscribe-events-v1")) {
+                        String dataMessage = data.getString("message");
+                        handleSubEvent(dataMessage);
                     }
                     break;
                 }
@@ -116,6 +123,55 @@ public class PubSubClient extends WebSocketClient {
             System.err.println("[TWITCH][PUBSUB] Error parsing WebSocket Response as json. Terminating.");
             e.printStackTrace();
             this.close();
+        }
+    }
+
+    private void handleSubEvent(String dataMessage) {
+        JSONObject message = new JSONObject(dataMessage);
+        String channelName = message.getString("channel_name");
+        String channelID = message.getString("channel_id");
+        String subPlan = message.getString("sub_plan");
+        String subPlanName = message.getString("sub_plan_name");
+        String context = message.getString("context");
+        String subMessage = message.getJSONObject("sub_message").getString("message");
+        int cumulativeMonths;
+        try {
+            cumulativeMonths = message.getInt("cumulative_months");
+        } catch (JSONException je) {
+            // Fall back on months as Twitch doesn't send either of the other two on gifts, despite
+            // months being deprecated.
+            cumulativeMonths = message.getInt("months");
+        }
+        Integer streakMonths = null;
+        try {
+            streakMonths = message.getInt("streak_months");
+        } catch (JSONException e) {
+            // Didn't exist, keep as null.
+        }
+        Date time = Date.from(Instant.from(DateTimeFormatter.ISO_INSTANT.parse(message.getString("time"))));
+        String recipientID = null, recipientName = null, recipientDisplayName = null;
+        if (context.contains("gift")) {
+            recipientID = message.getString("recipient_id");
+            recipientName = message.getString("recipient_user_name");
+            recipientDisplayName = message.getString("recipient_display_name");
+        }
+        String userName = null, userID = null, displayName = null;
+        if (!context.contains("anon")) {
+            userName = message.getString("user_name");
+            userID = message.getString("user_id");
+            displayName = message.getString("display_name");
+        }
+        SubscriptionEvent event =
+                new SubscriptionEvent(userName, userID, displayName, channelName, channelID, subPlan, subPlanName,
+                        context, subMessage, streakMonths, streakMonths, time, recipientID, recipientName, recipientDisplayName);
+        for (SubscriptionEventHandler handler : subscriptionEventHandlers) {
+            if (handler.onlyGifts && context.contains("gift")) {
+                handler.matched(event);
+            } else if (handler.usesStreak && streakMonths != null && streakMonths > handler.minimumAmount && streakMonths < handler.maximumAmount) {
+                handler.matched(event);
+            } else if (cumulativeMonths > handler.minimumAmount && cumulativeMonths < handler.maximumAmount) {
+                handler.matched(event);
+            }
         }
     }
 
