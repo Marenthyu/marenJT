@@ -1,9 +1,9 @@
 package de.marenthyu.twitch.pubsub;
 
 import de.marenthyu.twitch.auth.oauth.OAuthToken;
-import de.marenthyu.twitch.pubsub.channelpoints.ChannelPointsRedemptionHandler;
-import de.marenthyu.twitch.pubsub.channelpoints.Redemption;
-import de.marenthyu.twitch.pubsub.channelpoints.Reward;
+import de.marenthyu.twitch.pubsub.bits.BitsEvent;
+import de.marenthyu.twitch.pubsub.bits.BitsEventHandler;
+import de.marenthyu.twitch.pubsub.channelpoints.*;
 import org.java_websocket.client.WebSocketClient;
 import org.java_websocket.handshake.ServerHandshake;
 import org.json.JSONArray;
@@ -12,7 +12,7 @@ import org.json.JSONObject;
 
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.sql.Date;
+import java.util.Date;
 import java.time.Instant;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -24,6 +24,7 @@ public class PubSubClient extends WebSocketClient {
     private final ArrayList<String> topics;
     private boolean pongReceived;
     private final ArrayList<ChannelPointsRedemptionHandler> channelPointsRedemptionHandlers = new ArrayList<>();
+    private final ArrayList<BitsEventHandler> bitsEventHandlers = new ArrayList<>();
 
     public PubSubClient(OAuthToken oauth, ArrayList<String> topics) throws URISyntaxException {
         super(new URI(PUBSUB_URL));
@@ -90,8 +91,10 @@ public class PubSubClient extends WebSocketClient {
                     String dataMessage = data.getString("message");
                     String topic = data.getString("topic");
                     // System.out.println("[TWITCH][PUBSUB][MESSAGE][" + topic + "] " + dataMessage);
-                    if (topic.startsWith("channel-points")) {
+                    if (topic.startsWith("channel-points-channel-v1")) {
                         handleChannelPointsRedemption(dataMessage);
+                    } else if (topic.startsWith("channel-bits-events-v2")) {
+                        handleBitsEventV2(dataMessage);
                     }
                     break;
                 }
@@ -113,6 +116,39 @@ public class PubSubClient extends WebSocketClient {
             System.err.println("[TWITCH][PUBSUB] Error parsing WebSocket Response as json. Terminating.");
             e.printStackTrace();
             this.close();
+        }
+    }
+
+    private void handleBitsEventV2(String dataMessage) {
+        JSONObject data = new JSONObject(dataMessage).getJSONObject("data");
+        int bitsUsed = data.getInt("bits_used");
+        Integer totalBitsUsed = data.getInt("total_bits_used");
+        boolean isAnonymous = data.getBoolean("is_anonymous");
+        Integer previousBadge = null, nextBadge = null;
+        String userID = null, userName = null;
+        if (!isAnonymous) {
+            try {
+                JSONObject badgeEntitlement = data.getJSONObject("badge_entitlement");
+                previousBadge = badgeEntitlement.getInt("previous_version");
+                nextBadge = badgeEntitlement.getInt("new_version");
+            } catch (JSONException je) {
+                // Keep them null
+            }
+            userID = data.getString("user_id");
+            userName = data.getString("user_name");
+        }
+        String channelID = data.getString("channel_id");
+        String chatMessage = data.getString("chat_message");
+        String context = data.getString("context");
+        String messageType = data.getString("message_type");
+        String messageID = data.getString("message_id");
+        Date time = Date.from(Instant.from(DateTimeFormatter.ISO_INSTANT.parse(data.getString("time"))));
+        BitsEvent event = new BitsEvent(bitsUsed, totalBitsUsed, previousBadge, nextBadge, isAnonymous, userID,
+                userName, channelID, chatMessage, context, messageID, messageType, time);
+        for (BitsEventHandler handler : bitsEventHandlers) {
+            if (bitsUsed >= handler.minimumAmount && bitsUsed <= handler.maximumAmount) {
+                handler.matched(event);
+            }
         }
     }
 
@@ -161,6 +197,10 @@ public class PubSubClient extends WebSocketClient {
 
     public void addChannelPointsRedemptionHandler(ChannelPointsRedemptionHandler handler) {
         channelPointsRedemptionHandlers.add(handler);
+    }
+
+    public void addBitsEventHandler(BitsEventHandler handler) {
+        bitsEventHandlers.add(handler);
     }
 
     @Override
