@@ -78,11 +78,21 @@ public class BitsEvent {
 
     @Override
     public String toString() {
-        return "BitsEvent{" +
-                "bitsUsed=" + bitsUsed +
-                ", userName='" + userName + '\'' +
-                ", chatMessage='" + chatMessage + '\'' +
-                ", time=" + time +
-                '}';
+        final StringBuffer sb = new StringBuffer("BitsEvent{");
+        sb.append("bitsUsed=").append(bitsUsed);
+        sb.append(", totalBitsUsed=").append(totalBitsUsed);
+        sb.append(", previousBadge=").append(previousBadge);
+        sb.append(", nextBadge=").append(nextBadge);
+        sb.append(", isAnonymous=").append(isAnonymous);
+        sb.append(", userID='").append(userID).append('\'');
+        sb.append(", userName='").append(userName).append('\'');
+        sb.append(", channelID='").append(channelID).append('\'');
+        sb.append(", chatMessage='").append(chatMessage).append('\'');
+        sb.append(", context='").append(context).append('\'');
+        sb.append(", messageID='").append(messageID).append('\'');
+        sb.append(", messageType='").append(messageType).append('\'');
+        sb.append(", time=").append(time);
+        sb.append('}');
+        return sb.toString();
     }
 }

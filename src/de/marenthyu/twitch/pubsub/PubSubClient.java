@@ -128,19 +128,22 @@ public class PubSubClient extends WebSocketClient {
 
     private void handleSubEvent(String dataMessage) {
         JSONObject message = new JSONObject(dataMessage);
+        System.out.println("[TWITCH][PUBSUB][MESSAGE][SUBS] " + message.toString());
         String channelName = message.getString("channel_name");
         String channelID = message.getString("channel_id");
         String subPlan = message.getString("sub_plan");
         String subPlanName = message.getString("sub_plan_name");
         String context = message.getString("context");
         String subMessage = message.getJSONObject("sub_message").getString("message");
-        int cumulativeMonths;
+        Integer cumulativeMonths = null;
         try {
             cumulativeMonths = message.getInt("cumulative_months");
+            //System.out.println("Got months: " + cumulativeMonths);
         } catch (JSONException je) {
             // Fall back on months as Twitch doesn't send either of the other two on gifts, despite
             // months being deprecated.
             cumulativeMonths = message.getInt("months");
+            //System.out.println("Fell back on months: " + cumulativeMonths);
         }
         Integer streakMonths = null;
         try {
@@ -163,7 +166,7 @@ public class PubSubClient extends WebSocketClient {
         }
         SubscriptionEvent event =
                 new SubscriptionEvent(userName, userID, displayName, channelName, channelID, subPlan, subPlanName,
-                        context, subMessage, streakMonths, streakMonths, time, recipientID, recipientName, recipientDisplayName);
+                        context, subMessage, cumulativeMonths, streakMonths, time, recipientID, recipientName, recipientDisplayName);
         for (SubscriptionEventHandler handler : subscriptionEventHandlers) {
             if (handler.onlyGifts && context.contains("gift")) {
                 handler.matched(event);
@@ -171,33 +174,37 @@ public class PubSubClient extends WebSocketClient {
                 handler.matched(event);
             } else if (cumulativeMonths > handler.minimumAmount && cumulativeMonths < handler.maximumAmount) {
                 handler.matched(event);
+            } else if (handler.minimumAmount == 1 && handler.maximumAmount == Integer.MAX_VALUE) {
+                handler.matched(event);
             }
         }
     }
 
     private void handleBitsEventV2(String dataMessage) {
-        JSONObject data = new JSONObject(dataMessage).getJSONObject("data");
+        System.out.println("[TWITCH][PUBSUB][MESSAGE][BITS] " + dataMessage);
+        JSONObject messageObject = new JSONObject(dataMessage);
+        JSONObject data = messageObject.getJSONObject("data");
         int bitsUsed = data.getInt("bits_used");
         Integer totalBitsUsed = data.getInt("total_bits_used");
         boolean isAnonymous = data.getBoolean("is_anonymous");
         Integer previousBadge = null, nextBadge = null;
         String userID = null, userName = null;
         if (!isAnonymous) {
-            try {
-                JSONObject badgeEntitlement = data.getJSONObject("badge_entitlement");
-                previousBadge = badgeEntitlement.getInt("previous_version");
-                nextBadge = badgeEntitlement.getInt("new_version");
-            } catch (JSONException je) {
-                // Keep them null
-            }
             userID = data.getString("user_id");
             userName = data.getString("user_name");
+        }
+        try {
+            JSONObject badgeEntitlement = data.getJSONObject("badge_entitlement");
+            previousBadge = badgeEntitlement.getInt("previous_version");
+            nextBadge = badgeEntitlement.getInt("new_version");
+        } catch (JSONException je) {
+            // Keep them null
         }
         String channelID = data.getString("channel_id");
         String chatMessage = data.getString("chat_message");
         String context = data.getString("context");
-        String messageType = data.getString("message_type");
-        String messageID = data.getString("message_id");
+        String messageType = messageObject.getString("message_type");
+        String messageID = messageObject.getString("message_id");
         Date time = Date.from(Instant.from(DateTimeFormatter.ISO_INSTANT.parse(data.getString("time"))));
         BitsEvent event = new BitsEvent(bitsUsed, totalBitsUsed, previousBadge, nextBadge, isAnonymous, userID,
                 userName, channelID, chatMessage, context, messageID, messageType, time);
