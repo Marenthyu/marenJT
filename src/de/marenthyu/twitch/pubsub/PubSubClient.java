@@ -259,6 +259,10 @@ public class PubSubClient extends WebSocketClient {
         bitsEventHandlers.add(handler);
     }
 
+    public void addSubscriptionEventHandler(SubscriptionEventHandler handler) {
+        subscriptionEventHandlers.add(handler);
+    }
+
     @Override
     public void onClose(int code, String reason, boolean remote) {
         System.out.println("[TWITCH][PUBSUB] PubSub Connection closed. Here's info:");
